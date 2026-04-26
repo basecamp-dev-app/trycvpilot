@@ -21,6 +21,14 @@ const requestSchema = z.object({
 
 const generationResultSchema = z.object({
   cv: z.object({
+    contact: z.object({
+      name: z.string().trim().min(1).optional(),
+      location: z.string().trim().min(1).optional(),
+      email: z.string().trim().min(1).optional(),
+      phone: z.string().trim().min(1).optional(),
+      linkedin: z.string().trim().min(1).optional(),
+      portfolio: z.string().trim().min(1).optional(),
+    }).optional(),
     profile: z.string().trim().min(1),
     skills: z.array(z.string().trim().min(1)),
     experience: z.array(
@@ -144,6 +152,7 @@ function buildGenerationPrompt(input: z.infer<typeof requestSchema>, questions: 
 Return JSON with exactly this shape:
 {
   "cv": {
+    "contact": { "name": "string", "location": "string", "email": "string", "phone": "string", "linkedin": "string", "portfolio": "string" },
     "profile": "string",
     "skills": ["string"],
     "experience": [{ "title": "string", "organisation": "string", "dates": "string", "bullets": ["string"] }],
@@ -159,12 +168,13 @@ Return JSON with exactly this shape:
 Rules:
 - CV target: exactly ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow and obvious underfill as failures.
 - Evidence bank is the sole source of truth. Do not infer, exaggerate, round up, or add unsupported skills, tools, qualifications, duties, dates, employers, metrics, or achievements.
+- Put candidate name/location/email/phone/links in cv.contact only when explicitly present in the evidence bank. Never use placeholders.
 - Lead with the most relevant verified experience. Relevance beats completeness.
 - Keep bullets for each included role. Prefer concise bullets over full detail.
 - Quantify only where the metric is verified.
 - If too long, shorten/remove older or weaker material first.
 - If too short, restore relevant verified detail before using filler; never pad with unsupported claims.
-- ${input.cvPageTarget === 1 ? "One-page caps: profile 2-3 short lines, skills 6-10, roles 2-4 bullets each, include only relevant education/additional items." : "Two-page caps: include broader verified detail where relevant, but keep wording concise and avoid weak filler."}
+- ${input.cvPageTarget === 1 ? "One-page caps: profile max 2 short sentences, skills max 8, experience max 3 most relevant roles, bullets max 3 per role, education/additional only if useful." : "Two-page caps: include broader verified detail where relevant, but keep wording concise and avoid weak filler."}
 - Include every application question exactly once in questionAnswers, in the same order.
 - If there are no application questions, return an empty questionAnswers array.
 - Put unsupported job requirements, weak evidence, or missing details in evidenceWarnings.

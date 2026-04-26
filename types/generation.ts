@@ -1,5 +1,13 @@
 export type GenerationResult = {
   cv: {
+    contact?: {
+      name?: string;
+      location?: string;
+      email?: string;
+      phone?: string;
+      linkedin?: string;
+      portfolio?: string;
+    };
     profile: string;
     skills: string[];
     experience: Array<{

@@ -11,6 +11,7 @@ const PAGE_MARGIN_MM = 20;
 const A4_CONTENT_HEIGHT_MM = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2;
 
 type CvPageTarget = 1 | 2;
+type GeneratedCv = GenerationResult["cv"];
 
 export function GenerationForm() {
   const [evidenceBank, setEvidenceBank] = useState("");
@@ -18,6 +19,7 @@ export function GenerationForm() {
   const [applicationQuestions, setApplicationQuestions] = useState("");
   const [cvPageTarget, setCvPageTarget] = useState<CvPageTarget>(1);
   const [result, setResult] = useState<GenerationResult | null>(null);
+  const [resultVersion, setResultVersion] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,6 +41,7 @@ export function GenerationForm() {
       }
 
       setResult(payload.result);
+      setResultVersion((version) => version + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
@@ -68,7 +71,7 @@ export function GenerationForm() {
           {loading ? "Generating..." : "Generate application pack"}
         </button>
       </form>
-      <ResultsEditor result={result} cvPageTarget={cvPageTarget} onReset={() => setResult(null)} />
+      <ResultsEditor key={resultVersion} result={result} cvPageTarget={cvPageTarget} onReset={() => setResult(null)} />
     </div>
   );
 }
@@ -105,13 +108,14 @@ function Textarea({ label, value, onChange, max, placeholder }: { label: string;
 
 function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationResult | null; cvPageTarget: CvPageTarget; onReset: () => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [editedCv, setEditedCv] = useState<GeneratedCv | null>(result?.cv ?? null);
   const [fitStatus, setFitStatus] = useState<{ type: "ok" | "warning"; message: string }>({
     type: "warning",
     message: "Generate a CV to check the A4 page fit.",
   });
 
   useEffect(() => {
-    if (!result || !contentRef.current) return;
+    if (!editedCv || !contentRef.current) return;
 
     const updateFitStatus = () => {
       if (!contentRef.current) return;
@@ -148,9 +152,9 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       observer.disconnect();
       window.removeEventListener("resize", updateFitStatus);
     };
-  }, [cvPageTarget, result]);
+  }, [cvPageTarget, editedCv]);
 
-  if (!result) {
+  if (!result || !editedCv) {
     return (
       <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-slate-600">
         <h2 className="text-xl font-bold text-slate-950">Editable results appear here</h2>
@@ -170,45 +174,48 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       <div className={`rounded-2xl p-4 text-sm leading-6 ${fitStatus.type === "ok" ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>
         {fitStatus.message}
       </div>
-      <CvPreview result={result} contentRef={contentRef} pageTarget={cvPageTarget} />
-      <EditableBlock title="CV profile" initialValue={result.cv.profile} />
-      <EditableBlock title="Skills" initialValue={result.cv.skills.join("\n")} />
+      <CvPreview cv={editedCv} contentRef={contentRef} pageTarget={cvPageTarget} />
+      <EditableBlock title="CV profile" value={editedCv.profile} onChange={(profile) => setEditedCv({ ...editedCv, profile })} />
+      <EditableBlock title="Skills" value={editedCv.skills.join("\n")} onChange={(skills) => setEditedCv({ ...editedCv, skills: skills.split("\n").map((skill) => skill.trim()).filter(Boolean) })} />
       <EditableBlock title="Cover letter" initialValue={[result.coverLetter.greeting, ...result.coverLetter.body, result.coverLetter.signoff].join("\n\n")} />
       <EditableBlock title="Question answers" initialValue={result.questionAnswers.map((item) => `${item.question}\n${item.answer}`).join("\n\n")} />
       <Panel title="Suggestions" items={result.suggestions} />
       <Panel title="Evidence warnings" items={result.evidenceWarnings} />
       <div className="flex flex-wrap gap-3">
-        <button disabled={fitStatus.type !== "ok"} onClick={() => window.print()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-600">Print / Save PDF</button>
+        <button onClick={() => printCv(fitStatus)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{fitStatus.type === "ok" ? "Print / Save PDF" : "Review fit / Print"}</button>
         <button disabled className="rounded-full bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">Export DOCX later</button>
       </div>
     </section>
   );
 }
 
-function CvPreview({ result, contentRef, pageTarget }: { result: GenerationResult; contentRef: React.RefObject<HTMLDivElement | null>; pageTarget: CvPageTarget }) {
+function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef: React.RefObject<HTMLDivElement | null>; pageTarget: CvPageTarget }) {
+  const contactItems = [cv.contact?.location, cv.contact?.email, cv.contact?.phone, cv.contact?.linkedin, cv.contact?.portfolio].filter(Boolean);
+
   return (
     <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4">
-      <article className="cv-print-root mx-auto bg-white text-slate-950 shadow-sm" style={{ minHeight: `${A4_HEIGHT_MM * pageTarget}mm` }}>
+      <article className={`cv-print-root mx-auto bg-white text-slate-950 shadow-sm ${pageTarget === 1 ? "cv-compact" : ""}`} style={{ minHeight: `${A4_HEIGHT_MM * pageTarget}mm` }}>
         <div ref={contentRef} className="cv-print-content">
-          <header className="border-b border-slate-300 pb-4">
-            <h1 className="text-2xl font-bold tracking-tight">Tailored CV</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{result.cv.profile}</p>
+          <header className="cv-header border-b border-slate-300 pb-4">
+            <h1 className="text-2xl font-bold tracking-tight">{cv.contact?.name ?? "CV"}</h1>
+            {contactItems.length ? <p className="mt-1 text-xs font-medium text-slate-600">{contactItems.join(" | ")}</p> : null}
+            <p className="mt-2 text-sm leading-6 text-slate-700">{cv.profile}</p>
           </header>
 
-          {result.cv.skills.length ? (
+          {cv.skills.length ? (
             <section className="cv-section">
               <h2>Key Skills</h2>
               <ul className="cv-skills">
-                {result.cv.skills.map((skill) => <li key={skill}>{skill}</li>)}
+                {cv.skills.map((skill) => <li key={skill}>{skill}</li>)}
               </ul>
             </section>
           ) : null}
 
-          {result.cv.experience.length ? (
+          {cv.experience.length ? (
             <section className="cv-section">
               <h2>Experience</h2>
               <div className="space-y-4">
-                {result.cv.experience.map((role) => (
+                {cv.experience.map((role) => (
                   <div key={`${role.title}-${role.organisation ?? ""}-${role.dates ?? ""}`}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <h3 className="text-sm font-bold">{role.title}{role.organisation ? `, ${role.organisation}` : ""}</h3>
@@ -223,11 +230,11 @@ function CvPreview({ result, contentRef, pageTarget }: { result: GenerationResul
             </section>
           ) : null}
 
-          {result.cv.education.length ? (
+          {cv.education.length ? (
             <section className="cv-section">
               <h2>Education</h2>
               <div className="space-y-3">
-                {result.cv.education.map((item) => (
+                {cv.education.map((item) => (
                   <div key={`${item.qualification}-${item.institution ?? ""}-${item.dates ?? ""}`}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <h3 className="text-sm font-bold">{item.qualification}{item.institution ? `, ${item.institution}` : ""}</h3>
@@ -244,11 +251,11 @@ function CvPreview({ result, contentRef, pageTarget }: { result: GenerationResul
             </section>
           ) : null}
 
-          {result.cv.additional?.length ? (
+          {cv.additional?.length ? (
             <section className="cv-section">
               <h2>Additional</h2>
               <ul className="list-disc space-y-1 pl-5 text-sm leading-6">
-                {result.cv.additional.map((item) => <li key={item}>{item}</li>)}
+                {cv.additional.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </section>
           ) : null}
@@ -256,6 +263,15 @@ function CvPreview({ result, contentRef, pageTarget }: { result: GenerationResul
       </article>
     </div>
   );
+}
+
+function printCv(fitStatus: { type: "ok" | "warning"; message: string }) {
+  if (fitStatus.type === "warning") {
+    const confirmed = window.confirm(`${fitStatus.message}\n\nThe CV may not meet the selected page target. Print anyway?`);
+    if (!confirmed) return;
+  }
+
+  window.print();
 }
 
 function getPixelsPerMillimetre() {
@@ -269,11 +285,13 @@ function getPixelsPerMillimetre() {
   return pixelsPerMillimetre;
 }
 
-function EditableBlock({ title, initialValue }: { title: string; initialValue: string }) {
+function EditableBlock({ title, initialValue, value, onChange }: { title: string; initialValue?: string; value?: string; onChange?: (value: string) => void }) {
+  const textareaProps = onChange ? { value: value ?? "", onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value) } : { defaultValue: initialValue ?? "" };
+
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-slate-800">{title}</label>
-      <textarea defaultValue={initialValue} rows={5} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-950" />
+      <textarea {...textareaProps} rows={5} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-950" />
     </div>
   );
 }
