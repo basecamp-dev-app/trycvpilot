@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TryCVPilot
 
-## Getting Started
+Production-oriented skeleton for a paid AI web app that generates bespoke job application materials from user-supplied evidence.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js App Router with TypeScript
+- Tailwind CSS
+- Supabase Auth and Postgres
+- Stripe planned for subscriptions
+- Upstash planned for route rate limiting
+- OpenAI or Anthropic planned for generation
+
+## Current Deliverable
+
+- Landing, pricing, privacy, and terms pages
+- Supabase magic-link and Google sign-in UI
+- Protected dashboard, generation, and billing pages
+- Paste-per-generation form with character counts and privacy notice
+- Placeholder `/api/generate` route with auth, validation, usage checks, and no sensitive persistence
+- Supabase migration for `profiles`, `subscriptions`, and `usage_events`
+- Security headers and environment example
+
+## Privacy Model
+
+Evidence banks, job descriptions, application questions, generated CVs, cover letters, and answers are not saved to the database. The generation route processes request content transiently and returns generated content to the browser for editing.
+
+Supabase stores only non-sensitive account, subscription, and usage metadata.
+
+## Setup
+
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local` and fill the Supabase values.
+3. Run the Supabase migration in `supabase/migrations/0001_initial_schema.sql`.
+4. Enable Supabase Email magic links and Google OAuth.
+5. Add auth callback URLs in Supabase:
+   - `http://localhost:3000/auth/callback`
+   - `https://your-domain.com/auth/callback`
+6. Run `npm run dev`.
+
+## Required Environment Variables
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PRICE_PRO=
+STRIPE_PRICE_PRO=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+OPENAI_API_KEY=
+APP_URL=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Next Phases
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Add Upstash IP rate limiting on `/api/generate`
+- Add strict evidence-only AI provider call and JSON parsing
+- Add editable export flows for PDF and DOCX
+- Add Stripe Checkout, Customer Portal, and webhook subscription sync
+- Add tests for usage limits, subscription checks, auth gating, and no sensitive persistence
