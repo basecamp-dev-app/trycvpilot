@@ -16,6 +16,7 @@ const requestSchema = z.object({
   evidenceBank: z.string().trim().min(200, "Add at least 200 characters of evidence.").max(MAX_EVIDENCE_CHARS),
   jobDescription: z.string().trim().min(100, "Add at least 100 characters of job details.").max(MAX_JOB_CHARS),
   applicationQuestions: z.string().trim().max(MAX_QUESTIONS_CHARS).optional().default(""),
+  cvPageTarget: z.union([z.literal(1), z.literal(2)]).optional().default(1),
 });
 
 const generationResultSchema = z.object({
@@ -120,7 +121,7 @@ async function generateApplicationPack(input: z.infer<typeof requestSchema>, que
       {
         role: "system",
         content:
-          "You generate UK-style job application materials. Use only the user's supplied evidence. Never invent employers, qualifications, dates, metrics, achievements, technologies, certifications, or personal details. If evidence is missing for a job requirement, mention it in evidenceWarnings or suggestions instead of fabricating a claim. Return only valid JSON matching the requested schema.",
+          "You generate UK-style job application materials. Use only the user's supplied evidence. Never invent employers, qualifications, dates, metrics, achievements, technologies, certifications, or personal details. Put missing or weak evidence in warnings/suggestions, not the CV. Return only valid JSON matching the requested schema.",
       },
       {
         role: "user",
@@ -156,8 +157,14 @@ Return JSON with exactly this shape:
 }
 
 Rules:
-- Keep all content evidence-only and tailored to the job description.
-- Use concise, recruiter-friendly wording.
+- CV target: exactly ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow and obvious underfill as failures.
+- Evidence bank is the sole source of truth. Do not infer, exaggerate, round up, or add unsupported skills, tools, qualifications, duties, dates, employers, metrics, or achievements.
+- Lead with the most relevant verified experience. Relevance beats completeness.
+- Keep bullets for each included role. Prefer concise bullets over full detail.
+- Quantify only where the metric is verified.
+- If too long, shorten/remove older or weaker material first.
+- If too short, restore relevant verified detail before using filler; never pad with unsupported claims.
+- ${input.cvPageTarget === 1 ? "One-page caps: profile 2-3 short lines, skills 6-10, roles 2-4 bullets each, include only relevant education/additional items." : "Two-page caps: include broader verified detail where relevant, but keep wording concise and avoid weak filler."}
 - Include every application question exactly once in questionAnswers, in the same order.
 - If there are no application questions, return an empty questionAnswers array.
 - Put unsupported job requirements, weak evidence, or missing details in evidenceWarnings.
