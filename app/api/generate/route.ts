@@ -19,31 +19,36 @@ const requestSchema = z.object({
   cvPageTarget: z.union([z.literal(1), z.literal(2)]).optional().default(1),
 });
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
+
 const generationResultSchema = z.object({
   cv: z.object({
     contact: z.object({
-      name: z.string().trim().min(1).optional(),
-      location: z.string().trim().min(1).optional(),
-      email: z.string().trim().min(1).optional(),
-      phone: z.string().trim().min(1).optional(),
-      linkedin: z.string().trim().min(1).optional(),
-      portfolio: z.string().trim().min(1).optional(),
+      name: optionalNonEmptyString,
+      location: optionalNonEmptyString,
+      email: optionalNonEmptyString,
+      phone: optionalNonEmptyString,
+      linkedin: optionalNonEmptyString,
+      portfolio: optionalNonEmptyString,
     }).optional(),
     profile: z.string().trim().min(1),
     skills: z.array(z.string().trim().min(1)),
     experience: z.array(
       z.object({
         title: z.string().trim().min(1),
-        organisation: z.string().trim().min(1).optional(),
-        dates: z.string().trim().min(1).optional(),
+        organisation: optionalNonEmptyString,
+        dates: optionalNonEmptyString,
         bullets: z.array(z.string().trim().min(1)),
       }),
     ),
     education: z.array(
       z.object({
         qualification: z.string().trim().min(1),
-        institution: z.string().trim().min(1).optional(),
-        dates: z.string().trim().min(1).optional(),
+        institution: optionalNonEmptyString,
+        dates: optionalNonEmptyString,
         details: z.array(z.string().trim().min(1)).optional(),
       }),
     ),
@@ -149,7 +154,7 @@ async function generateApplicationPack(input: z.infer<typeof requestSchema>, que
 function buildGenerationPrompt(input: z.infer<typeof requestSchema>, questions: string[]) {
   return `Create a tailored application pack from the supplied inputs.
 
-Return JSON with exactly this shape:
+Return JSON with this shape. Omit unsupported optional properties rather than returning empty strings:
 {
   "cv": {
     "contact": { "name": "string", "location": "string", "email": "string", "phone": "string", "linkedin": "string", "portfolio": "string" },
@@ -169,6 +174,7 @@ Rules:
 - CV target: exactly ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow and obvious underfill as failures.
 - Evidence bank is the sole source of truth. Do not infer, exaggerate, round up, or add unsupported skills, tools, qualifications, duties, dates, employers, metrics, or achievements.
 - Put candidate name/location/email/phone/links in cv.contact only when explicitly present in the evidence bank. Never use placeholders.
+- Do not return empty strings. Omit unsupported optional fields instead.
 - Lead with the most relevant verified experience. Relevance beats completeness.
 - Keep bullets for each included role. Prefer concise bullets over full detail.
 - Quantify only where the metric is verified.
@@ -179,7 +185,7 @@ Rules:
 - If there are no application questions, return an empty questionAnswers array.
 - Put unsupported job requirements, weak evidence, or missing details in evidenceWarnings.
 - Put practical improvement ideas in suggestions.
-- Omit optional fields only when there is no supporting evidence.
+- Omit optional fields only when there is no supporting evidence. Optional fields include contact properties, organisation, dates, institution, education details, and additional.
 
 Evidence bank:
 ${input.evidenceBank}
