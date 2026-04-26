@@ -25,7 +25,7 @@ export async function getUsageAllowance(userId: string) {
   return {
     isPaid,
     weeklyFreeUsed,
-    allowed: isPaid || weeklyFreeUsed < 1,
+    allowed: true,
     plan: isPaid ? "pro" : "free",
   };
 }
