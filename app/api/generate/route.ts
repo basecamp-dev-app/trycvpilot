@@ -149,7 +149,34 @@ async function generateApplicationPack(input: z.infer<typeof requestSchema>, que
     throw new Error("DeepSeek returned an empty response.");
   }
 
-  return generationResultSchema.parse(JSON.parse(content));
+  const result = generationResultSchema.parse(JSON.parse(content));
+  return validateGeneratedContact(result, input.evidenceBank);
+}
+
+function validateGeneratedContact(result: GenerationResult, evidenceBank: string): GenerationResult {
+  const candidateName = result.cv.contact?.name;
+  if (!candidateName) return result;
+
+  const exactEvidenceName = findEvidenceSubstring(evidenceBank, candidateName);
+  if (exactEvidenceName) {
+    result.cv.contact = { ...result.cv.contact, name: exactEvidenceName };
+    return result;
+  }
+
+  const remainingContact = { ...(result.cv.contact ?? {}) };
+  delete remainingContact.name;
+  result.cv.contact = Object.keys(remainingContact).length ? remainingContact : undefined;
+  result.evidenceWarnings = [
+    ...result.evidenceWarnings,
+    "Removed candidate name because it did not appear exactly in the evidence bank.",
+  ];
+  return result;
+}
+
+function findEvidenceSubstring(evidenceBank: string, generatedValue: string) {
+  const index = evidenceBank.toLocaleLowerCase().indexOf(generatedValue.toLocaleLowerCase());
+  if (index === -1) return null;
+  return evidenceBank.slice(index, index + generatedValue.length);
 }
 
 function buildGenerationPrompt(input: z.infer<typeof requestSchema>, questions: string[]) {
@@ -173,16 +200,19 @@ Return JSON with this shape. Omit unsupported optional properties rather than re
 }
 
 Rules:
-- CV target: exactly ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow and obvious underfill as failures.
+- CV target: ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow as a failure.
 - Return jobTitle as a concise role title derived from the job description only, for PDF filename metadata. Do not add employer names or unsupported context.
 - Evidence bank is the sole source of truth. Do not infer, exaggerate, round up, or add unsupported skills, tools, qualifications, duties, dates, employers, metrics, or achievements.
-- Put candidate name/location/email/phone/links in cv.contact only when explicitly present in the evidence bank. Never use placeholders.
+- Contact details are transcription-critical. Copy candidate name, email, phone, location, LinkedIn, and portfolio exactly as written in the evidence bank.
+- Do not normalise, correct spelling, infer, title-case, expand, abbreviate, or alter contact details.
+- If the candidate name is present, cv.contact.name must be an exact substring from the evidence bank.
+- Put candidate name/location/email/phone/links in cv.contact only when explicitly present in the evidence bank. Never use placeholders. If unsure, omit the field and add an evidence warning.
 - Do not return empty strings. Omit unsupported optional fields instead.
 - Lead with the most relevant verified experience. Relevance beats completeness.
 - Keep bullets for each included role. Prefer concise bullets over full detail.
 - Quantify only where the metric is verified.
 - If too long, shorten/remove older or weaker material first.
-- If too short, restore relevant verified detail before using filler; never pad with unsupported claims.
+- Vertical Space Rule for CV content: aim for a complete A4 page, but do not add filler. Prefer restoring relevant verified detail over adding weak content. Never invent or duplicate bullets to fill space. If the supplied evidence is too limited to fill the target page honestly, keep the CV concise and explain the gap in evidenceWarnings.
 - ${input.cvPageTarget === 1 ? "One-page caps: profile max 2 short sentences, skills max 8, experience max 3 most relevant roles, bullets max 3 per role, education/additional only if useful." : "Two-page caps: include broader verified detail where relevant, but keep wording concise and avoid weak filler."}
 - Include every application question exactly once in questionAnswers, in the same order.
 - If there are no application questions, return an empty questionAnswers array.

@@ -9,6 +9,33 @@ const MAX_QUESTIONS_CHARS = 8000;
 const A4_HEIGHT_MM = 297;
 const PAGE_MARGIN_MM = 20;
 const A4_CONTENT_HEIGHT_MM = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2;
+const EVIDENCE_BANK_PLACEHOLDER = `Include only true, verifiable information. The CV will not invent missing details.
+
+Personal details:
+Name:
+Location:
+Email:
+Phone:
+LinkedIn:
+Portfolio / website:
+
+Work experience:
+For each role, include job title, organisation, dates, responsibilities, achievements, tools used, and verified metrics.
+
+Education:
+Qualification, institution, dates, grades/modules/projects if relevant.
+
+Skills:
+Tools, software, languages, technical skills, customer-facing skills, admin/process skills, sector knowledge.
+
+Projects / volunteering / certifications:
+Include dates, organisations, outcomes, and evidence.
+
+Achievements:
+Only include numbers or claims you can verify.
+
+Preferences:
+Anything to avoid, roles to prioritise, career gaps to explain, or content that must be included.`;
 
 type CvPageTarget = 1 | 2;
 type GeneratedCv = GenerationResult["cv"];
@@ -52,7 +79,7 @@ export function GenerationForm() {
   return (
     <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
       <form onSubmit={submitGeneration} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6">
-        <Textarea label="Evidence bank" value={evidenceBank} onChange={setEvidenceBank} max={MAX_EVIDENCE_CHARS} placeholder="Work experience, education, grades, projects, skills, achievements, volunteering, certifications..." />
+        <Textarea label="Evidence bank" value={evidenceBank} onChange={setEvidenceBank} max={MAX_EVIDENCE_CHARS} placeholder={EVIDENCE_BANK_PLACEHOLDER} />
         <Textarea label="Job description or person specification" value={jobDescription} onChange={setJobDescription} max={MAX_JOB_CHARS} placeholder="Paste the role description, requirements, selection criteria, and employer context..." />
         <Textarea label="Application questions" value={applicationQuestions} onChange={setApplicationQuestions} max={MAX_QUESTIONS_CHARS} placeholder="Paste questions, one per line if possible. Maximum 12 questions for now." />
         <fieldset className="rounded-2xl border border-slate-200 p-4">
@@ -108,7 +135,9 @@ function Textarea({ label, value, onChange, max, placeholder }: { label: string;
 
 function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationResult | null; cvPageTarget: CvPageTarget; onReset: () => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const relaxedAttemptKeyRef = useRef("");
   const [editedCv, setEditedCv] = useState<GeneratedCv | null>(result?.cv ?? null);
+  const [relaxedLayout, setRelaxedLayout] = useState(false);
   const [fitStatus, setFitStatus] = useState<{ type: "ok" | "warning"; message: string }>({
     type: "warning",
     message: "Generate a CV to check the A4 page fit.",
@@ -126,7 +155,18 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       const underfillLimit = targetHeight * 0.9;
 
       if (contentHeight > targetHeight) {
+        if (relaxedLayout) {
+          setRelaxedLayout(false);
+          return;
+        }
         setFitStatus({ type: "warning", message: `CV overflows the selected ${cvPageTarget}-page A4 target. Shorten or remove weaker material before exporting.` });
+        return;
+      }
+
+      const relaxedAttemptKey = `${cvPageTarget}:${JSON.stringify(editedCv)}`;
+      if (contentHeight < underfillLimit && !relaxedLayout && relaxedAttemptKeyRef.current !== relaxedAttemptKey) {
+        relaxedAttemptKeyRef.current = relaxedAttemptKey;
+        setRelaxedLayout(true);
         return;
       }
 
@@ -152,7 +192,7 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       observer.disconnect();
       window.removeEventListener("resize", updateFitStatus);
     };
-  }, [cvPageTarget, editedCv]);
+  }, [cvPageTarget, editedCv, relaxedLayout]);
 
   if (!result || !editedCv) {
     return (
@@ -174,7 +214,7 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       <div className={`rounded-2xl p-4 text-sm leading-6 ${fitStatus.type === "ok" ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>
         {fitStatus.message}
       </div>
-      <CvPreview cv={editedCv} contentRef={contentRef} pageTarget={cvPageTarget} />
+      <CvPreview cv={editedCv} contentRef={contentRef} pageTarget={cvPageTarget} relaxedLayout={relaxedLayout} />
       <EditableBlock title="CV profile" value={editedCv.profile} onChange={(profile) => setEditedCv({ ...editedCv, profile })} />
       <EditableBlock title="Skills" value={editedCv.skills.join("\n")} onChange={(skills) => setEditedCv({ ...editedCv, skills: skills.split("\n").map((skill) => skill.trim()).filter(Boolean) })} />
       <EditableBlock title="Cover letter" initialValue={[result.coverLetter.greeting, ...result.coverLetter.body, result.coverLetter.signoff].join("\n\n")} />
@@ -189,12 +229,12 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
   );
 }
 
-function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef: React.RefObject<HTMLDivElement | null>; pageTarget: CvPageTarget }) {
+function CvPreview({ cv, contentRef, pageTarget, relaxedLayout }: { cv: GeneratedCv; contentRef: React.RefObject<HTMLDivElement | null>; pageTarget: CvPageTarget; relaxedLayout: boolean }) {
   const contactItems = [cv.contact?.location, cv.contact?.email, cv.contact?.phone, cv.contact?.linkedin, cv.contact?.portfolio].filter(Boolean);
 
   return (
     <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4">
-      <article className={`cv-print-root mx-auto bg-white text-slate-950 shadow-sm ${pageTarget === 1 ? "cv-compact" : ""}`} style={{ minHeight: `${A4_HEIGHT_MM * pageTarget}mm` }}>
+      <article className={`cv-print-root mx-auto bg-white text-slate-950 shadow-sm ${pageTarget === 1 ? "cv-compact" : ""} ${relaxedLayout ? "cv-relaxed" : ""}`} style={{ minHeight: `${A4_HEIGHT_MM * pageTarget}mm` }}>
         <div ref={contentRef} className="cv-print-content">
           <header className="cv-header">
             <h1>{cv.contact?.name ?? "CV"}</h1>

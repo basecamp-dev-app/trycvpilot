@@ -209,6 +209,51 @@ input {
   margin-bottom: 0.65mm;
 }
 
+.cv-relaxed {
+  line-height: 1.5;
+}
+
+.cv-relaxed .cv-header {
+  margin-bottom: 4.2mm;
+  padding-bottom: 4mm;
+}
+
+.cv-relaxed .cv-section {
+  margin-top: 4.2mm;
+}
+
+.cv-relaxed .cv-section h2 {
+  margin-bottom: 1.4mm;
+}
+
+.cv-relaxed .cv-skills {
+  gap: 1.4mm 8mm;
+  margin-bottom: 2.4mm;
+}
+
+.cv-relaxed .cv-entry {
+  padding: 2.4mm 0;
+}
+
+.cv-relaxed .cv-entry-row {
+  margin-bottom: 0.8mm;
+}
+
+.cv-relaxed .cv-org {
+  margin-bottom: 0.9mm;
+}
+
+.cv-relaxed .cv-profile p,
+.cv-relaxed .cv-org,
+.cv-relaxed .cv-bullets li,
+.cv-relaxed .cv-skills li {
+  line-height: 1.48;
+}
+
+.cv-relaxed .cv-bullets li {
+  margin-bottom: 1.2mm;
+}
+
 @page {
   size: A4;
   margin: 20mm;
