@@ -25,6 +25,7 @@ const optionalNonEmptyString = z.preprocess(
 );
 
 const generationResultSchema = z.object({
+  jobTitle: z.string().trim().min(1),
   cv: z.object({
     contact: z.object({
       name: optionalNonEmptyString,
@@ -156,6 +157,7 @@ function buildGenerationPrompt(input: z.infer<typeof requestSchema>, questions: 
 
 Return JSON with this shape. Omit unsupported optional properties rather than returning empty strings:
 {
+  "jobTitle": "string",
   "cv": {
     "contact": { "name": "string", "location": "string", "email": "string", "phone": "string", "linkedin": "string", "portfolio": "string" },
     "profile": "string",
@@ -172,6 +174,7 @@ Return JSON with this shape. Omit unsupported optional properties rather than re
 
 Rules:
 - CV target: exactly ${input.cvPageTarget} A4 page${input.cvPageTarget === 1 ? "" : "s"}. Treat overflow and obvious underfill as failures.
+- Return jobTitle as a concise role title derived from the job description only, for PDF filename metadata. Do not add employer names or unsupported context.
 - Evidence bank is the sole source of truth. Do not infer, exaggerate, round up, or add unsupported skills, tools, qualifications, duties, dates, employers, metrics, or achievements.
 - Put candidate name/location/email/phone/links in cv.contact only when explicitly present in the evidence bank. Never use placeholders.
 - Do not return empty strings. Omit unsupported optional fields instead.

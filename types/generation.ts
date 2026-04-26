@@ -1,4 +1,5 @@
 export type GenerationResult = {
+  jobTitle: string;
   cv: {
     contact?: {
       name?: string;

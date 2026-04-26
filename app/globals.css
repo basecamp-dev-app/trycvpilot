@@ -26,64 +26,187 @@ input {
 }
 
 .cv-print-root {
+  --cv-ink: #1a1a1a;
+  --cv-muted: #5a5a5a;
+  --cv-accent: #2e4a3f;
+  --cv-border: #dddddd;
   box-sizing: border-box;
   width: 210mm;
   padding: 20mm;
+  color: var(--cv-ink);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.42;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .cv-print-content {
-  color: #0f172a;
+  color: var(--cv-ink);
+}
+
+.cv-header {
+  margin-bottom: 3mm;
+  border-bottom: 3px solid var(--cv-accent);
+  padding-bottom: 3mm;
+}
+
+.cv-header h1 {
+  margin: 0 0 0.5mm;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.12;
+  text-transform: uppercase;
+}
+
+.cv-contact {
+  margin: 0;
+  color: var(--cv-muted);
+  font-size: 10pt;
+  font-weight: 500;
 }
 
 .cv-section {
-  margin-top: 1rem;
+  margin-top: 3mm;
 }
 
 .cv-section h2 {
-  margin-bottom: 0.45rem;
-  border-bottom: 1px solid #cbd5e1;
-  padding-bottom: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  margin: 0 0 1mm;
+  color: var(--cv-accent);
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.25;
   text-transform: uppercase;
+}
+
+.cv-profile p,
+.cv-org,
+.cv-bullets li {
+  font-size: 9.3pt;
+}
+
+.cv-profile p {
+  margin: 0;
 }
 
 .cv-skills {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.25rem 1rem;
-  font-size: 0.875rem;
-  line-height: 1.5rem;
+  gap: 1mm 8mm;
+  margin: 0 0 2mm;
 }
 
 .cv-skills li {
-  list-style: disc;
-  margin-left: 1rem;
+  position: relative;
+  margin: 0;
+  padding-left: 3.5mm;
+  font-size: 8.95pt;
+  line-height: 1.35;
+  list-style: none;
+}
+
+.cv-skills li::before {
+  position: absolute;
+  top: 0.55em;
+  left: 0;
+  width: 1.8mm;
+  height: 1.8mm;
+  border-radius: 999px;
+  background: var(--cv-accent);
+  content: "";
+}
+
+.cv-entries {
+  margin: 0;
+}
+
+.cv-entry {
+  border-top: 1px solid var(--cv-border);
+  padding: 1.8mm 0;
+}
+
+.cv-entry:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.cv-entry-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4mm;
+  margin-bottom: 0.5mm;
+}
+
+.cv-entry h3 {
+  margin: 0;
+  font-size: 10.5pt;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.cv-meta {
+  margin: 0;
+  color: var(--cv-muted);
+  font-size: 8.5pt;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cv-org {
+  margin: 0 0 0.6mm;
+  color: var(--cv-muted);
+  line-height: 1.35;
+}
+
+.cv-bullets {
+  margin: 0;
+  padding-left: 4mm;
+}
+
+.cv-bullets li {
+  margin: 0 0 0.9mm;
+  line-height: 1.36;
+}
+
+.cv-bullets li:last-child {
+  margin-bottom: 0;
 }
 
 .cv-compact .cv-header {
-  padding-bottom: 0.75rem;
+  margin-bottom: 2.4mm;
+  padding-bottom: 2.4mm;
 }
 
 .cv-compact .cv-section {
-  margin-top: 0.75rem;
+  margin-top: 2.4mm;
 }
 
 .cv-compact .cv-section h2 {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.8mm;
 }
 
 .cv-compact .cv-skills {
-  gap: 0.1rem 0.9rem;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+  gap: 0.8mm 7mm;
+  margin-bottom: 1.5mm;
 }
 
-.cv-compact p,
-.cv-compact li {
-  font-size: 0.8125rem;
-  line-height: 1.35rem;
+.cv-compact .cv-entry {
+  padding: 1.4mm 0;
+}
+
+.cv-compact .cv-profile p,
+.cv-compact .cv-org,
+.cv-compact .cv-bullets li,
+.cv-compact .cv-skills li {
+  font-size: 8.85pt;
+}
+
+.cv-compact .cv-bullets li {
+  margin-bottom: 0.65mm;
 }
 
 @page {

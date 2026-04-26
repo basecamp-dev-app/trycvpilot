@@ -182,7 +182,7 @@ function ResultsEditor({ result, cvPageTarget, onReset }: { result: GenerationRe
       <Panel title="Suggestions" items={result.suggestions} />
       <Panel title="Evidence warnings" items={result.evidenceWarnings} />
       <div className="flex flex-wrap gap-3">
-        <button onClick={() => printCv(fitStatus)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{fitStatus.type === "ok" ? "Print / Save PDF" : "Review fit / Print"}</button>
+        <button onClick={() => printCv(fitStatus, result.jobTitle, editedCv.contact?.name)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{fitStatus.type === "ok" ? "Print / Save PDF" : "Review fit / Print"}</button>
         <button disabled className="rounded-full bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">Export DOCX later</button>
       </div>
     </section>
@@ -196,11 +196,15 @@ function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef
     <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4">
       <article className={`cv-print-root mx-auto bg-white text-slate-950 shadow-sm ${pageTarget === 1 ? "cv-compact" : ""}`} style={{ minHeight: `${A4_HEIGHT_MM * pageTarget}mm` }}>
         <div ref={contentRef} className="cv-print-content">
-          <header className="cv-header border-b border-slate-300 pb-4">
-            <h1 className="text-2xl font-bold tracking-tight">{cv.contact?.name ?? "CV"}</h1>
-            {contactItems.length ? <p className="mt-1 text-xs font-medium text-slate-600">{contactItems.join(" | ")}</p> : null}
-            <p className="mt-2 text-sm leading-6 text-slate-700">{cv.profile}</p>
+          <header className="cv-header">
+            <h1>{cv.contact?.name ?? "CV"}</h1>
+            {contactItems.length ? <p className="cv-contact">{contactItems.join(" | ")}</p> : null}
           </header>
+
+          <section className="cv-section cv-profile">
+            <h2>Profile</h2>
+            <p>{cv.profile}</p>
+          </section>
 
           {cv.skills.length ? (
             <section className="cv-section">
@@ -214,14 +218,15 @@ function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef
           {cv.experience.length ? (
             <section className="cv-section">
               <h2>Experience</h2>
-              <div className="space-y-4">
+              <div className="cv-entries">
                 {cv.experience.map((role) => (
-                  <div key={`${role.title}-${role.organisation ?? ""}-${role.dates ?? ""}`}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                      <h3 className="text-sm font-bold">{role.title}{role.organisation ? `, ${role.organisation}` : ""}</h3>
-                      {role.dates ? <p className="text-xs font-medium text-slate-600">{role.dates}</p> : null}
+                  <div className="cv-entry" key={`${role.title}-${role.organisation ?? ""}-${role.dates ?? ""}`}>
+                    <div className="cv-entry-row">
+                      <h3>{role.title}</h3>
+                      {role.dates ? <p className="cv-meta">{role.dates}</p> : null}
                     </div>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6">
+                    {role.organisation ? <p className="cv-org">{role.organisation}</p> : null}
+                    <ul className="cv-bullets">
                       {role.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
                     </ul>
                   </div>
@@ -233,15 +238,16 @@ function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef
           {cv.education.length ? (
             <section className="cv-section">
               <h2>Education</h2>
-              <div className="space-y-3">
+              <div className="cv-entries">
                 {cv.education.map((item) => (
-                  <div key={`${item.qualification}-${item.institution ?? ""}-${item.dates ?? ""}`}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                      <h3 className="text-sm font-bold">{item.qualification}{item.institution ? `, ${item.institution}` : ""}</h3>
-                      {item.dates ? <p className="text-xs font-medium text-slate-600">{item.dates}</p> : null}
+                  <div className="cv-entry" key={`${item.qualification}-${item.institution ?? ""}-${item.dates ?? ""}`}>
+                    <div className="cv-entry-row">
+                      <h3>{item.qualification}</h3>
+                      {item.dates ? <p className="cv-meta">{item.dates}</p> : null}
                     </div>
+                    {item.institution ? <p className="cv-org">{item.institution}</p> : null}
                     {item.details?.length ? (
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6">
+                      <ul className="cv-bullets">
                         {item.details.map((detail) => <li key={detail}>{detail}</li>)}
                       </ul>
                     ) : null}
@@ -254,7 +260,7 @@ function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef
           {cv.additional?.length ? (
             <section className="cv-section">
               <h2>Additional</h2>
-              <ul className="list-disc space-y-1 pl-5 text-sm leading-6">
+              <ul className="cv-bullets">
                 {cv.additional.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </section>
@@ -265,13 +271,32 @@ function CvPreview({ cv, contentRef, pageTarget }: { cv: GeneratedCv; contentRef
   );
 }
 
-function printCv(fitStatus: { type: "ok" | "warning"; message: string }) {
+function printCv(fitStatus: { type: "ok" | "warning"; message: string }, jobTitle: string, candidateName?: string) {
   if (fitStatus.type === "warning") {
     const confirmed = window.confirm(`${fitStatus.message}\n\nThe CV may not meet the selected page target. Print anyway?`);
     if (!confirmed) return;
   }
 
+  const originalTitle = document.title;
+  document.title = buildPdfFilename(jobTitle, candidateName);
   window.print();
+  window.setTimeout(() => {
+    document.title = originalTitle;
+  }, 1000);
+}
+
+function buildPdfFilename(jobTitle: string, candidateName?: string) {
+  const safeJobTitle = safeFilenamePart(jobTitle) || "Job Application";
+  const safeName = safeFilenamePart(candidateName) || "Candidate";
+  return `${safeJobTitle} - ${safeName}.pdf`;
+}
+
+function safeFilenamePart(value?: string) {
+  return (value ?? "")
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
 }
 
 function getPixelsPerMillimetre() {
